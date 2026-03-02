@@ -61,3 +61,110 @@ ax.set_zlim(-1, 1)
 ax.set_title("Gaussian Potential Electric Field");
 
 plt.show()
+
+
+source = (0 * u.mm, -10 * u.mm, 0 * u.mm)
+detector = (0 * u.mm, 1000 * u.mm, 0 * u.mm)
+
+sim = cpr.Tracker(grid, source, detector, verbose=True)
+
+
+sim.create_particles(1e2, 3 * u.MeV, max_theta=np.pi / 15 * u.rad, particle="p", distribution="uniform")
+
+sim.run();
+
+
+fig = plt.figure(figsize=(8, 8))
+ax = fig.add_subplot(111, projection="3d")
+ax.view_init(30, 150)
+ax.set_xlabel("X (cm)")
+ax.set_ylabel("Y (cm)")
+ax.set_zlabel("Z (cm)")
+
+# Plot the source-to-detector axis
+ax.quiver(
+    sim.source[0] * 100,
+    sim.source[1] * 100,
+    sim.source[2] * 100,
+    sim.detector[0] * 100,
+    sim.detector[1] * 100,
+    sim.detector[2] * 100,
+    color="black",
+)
+
+# Plot the simulation field grid volume
+ax.scatter(0, 0, 0, color="green", marker="s", linewidth=5, label="Simulated Fields")
+
+# Plot the proton source and detector plane locations
+ax.scatter(
+    sim.source[0] * 100,
+    sim.source[1] * 100,
+    sim.source[2] * 100,
+    color="red",
+    marker="*",
+    linewidth=5,
+    label="Source",
+)
+
+ax.scatter(
+    sim.detector[0] * 100,
+    sim.detector[1] * 100,
+    sim.detector[2] * 100,
+    color="blue",
+    marker="*",
+    linewidth=10,
+    label="Detector",
+)
+
+
+# Plot the final proton positions of some (not all) of the protons
+ind = slice(None, None, 200)
+ax.scatter(
+    sim.x[ind, 0] * 100,
+    sim.x[ind, 1] * 100,
+    sim.x[ind, 2] * 100,
+    label="Protons",
+)
+
+ax.legend();
+plt.show()
+
+
+
+
+# A function to reduce repetitive plotting
+
+
+def plot_radiograph(hax, vax, intensity):
+    fig, ax = plt.subplots(figsize=(8, 8))
+    plot = ax.pcolormesh(
+        hax.to(u.cm).value,
+        vax.to(u.cm).value,
+        intensity.T,
+        cmap="Blues_r",
+        shading="auto",
+    )
+    cb = fig.colorbar(plot)
+    cb.ax.set_ylabel("Intensity")
+    ax.set_aspect("equal")
+    ax.set_xlabel("X (cm), Image plane")
+    ax.set_ylabel("Z (cm), Image plane")
+    ax.set_title("Synthetic Proton Radiograph")
+
+
+size = np.array([[-1, 1], [-1, 1]]) * 1.5 * u.cm
+bins = [200, 200]
+hax, vax, intensity = cpr.synthetic_radiograph(sim, size=size, bins=bins)
+plot_radiograph(hax, vax, intensity)
+plt.show()
+
+
+max_deflection = sim.max_deflection
+print(f"Maximum deflection α = {np.rad2deg(max_deflection):.2f}")
+
+a = 1 * u.mm
+l = np.linalg.norm(sim.source * u.m).to(u.mm)
+mu = l * max_deflection.value / a
+print(f"a = {a}")
+print(f"l = {l:.1f}")
+print(f"μ = {mu:.2f}")
